@@ -3,6 +3,38 @@
 [**KangarooTwelve**][k12] (or **K12**) is a fast and secure extendable-output function (XOF), the generalization of hash functions to arbitrary output lengths.
 Derived from Keccak, it aims at higher speeds than FIPS 202's SHA-3 and SHAKE functions, while retaining their flexibility and basis of security.
 
+## Wasm Compilation
+
+```
+emcc -O3 --memory-init-file 0 -o ./k12.js -s EXTRA_EXPORTED_RUNTIME_METHODS=["stringToUTF8"] -s EXPORTED_FUNCTIONS="['_KangarooTwelve_Initialize','_KangarooTwelve_Update','_KangarooTwelve_Final','_KangarooTwelve_Squeeze','_NewKangarooTwelve','_malloc','_free','stringToUTF8','_KangarooTwelve_IsAbsorbing', '_KangarooTwelve_IsSqueezing','_KangarooTwelve_phase']"  -Ilib lib/KangarooTwelve.c lib/emscripten_bindings.c  -Ilib\Inplace32BI lib\Inplace32BI\KeccakP-1600-inplace32BI.c 
+and then hand-wrap that and provide KangarooTwelve() constructor;
+```
+
+```
+
+var k12 = KangarooTwelve();
+
+```
+
+This version allocates a 64 byte result buffer... see `outbuf` and `realBuf`.
+
+| KangarooTwelve Methods | parameters | description |
+|----|----|-----|
+| init | () | Reset KanagrooTwelve  hash to empty state. |
+| drop | () | Release any resources associted with this (no auto GC for WASM) |
+| update | (buf) | Add data to k12 hash function.  If buf is a string, it is converted to a utf-8 representation in a Uint8Array and passed to the function.  If the buffer is a Uint32Array or UInt8Array, the buffer is copied into the wasm heap.  This then passes the heap buffer to update.  The heap buffer is sized to worst case of data passed, and is retained between invocations. |
+| final | () | This ends the absorb phase and enters squeezing stage for KangarooTwelve hashing; this could be extended to also pass a length to squeeze |
+| squeeze | (n) | The parameter 'n' is a number indicating the number of bytes to retreive from the generator.  THe result is a Uint8Array |
+| release | (buf)| no-op |
+| absorbing  | () | returns true/false whether the current phase is ABSORBING |
+| squeezing  | () | returns true/false whether the current phase is SQUEEZING |
+| phase  | () | returns integer value represening phase. (debug?) |
+
+
+
+# What is KangarooTwelve ?(cont)
+
+
 On high-end platforms, it can exploit a high degree of parallelism, whether using multiple cores or the single-instruction multiple-data (SIMD) instruction set of modern processors.
 On Intel's® Haswell and Skylake architectures, KangarooTwelve tops at less than 1.5 cycles/byte for long messages on a single core, and at 0.55 cycles/byte on the SkylakeX architecture.
 On low-end platforms, as well as for short messages, it also benefits from about a factor two speed-up compared to the fastest FIPS 202 instance SHAKE128.
